@@ -1,12 +1,14 @@
 [project]
 name = "cost-audit-agent"
-version = "0.1.0"
+version = "0.2.0"
 description = "Solo Founder OS agent #11 — monthly bill audit across Vercel / Anthropic / Supabase / OpenPanel / HyperDX. Flags underused SaaS + spend spikes."
 authors = [{ name = "Alex Ji", email = "alex@vibexforge.com" }]
 license = { text = "MIT" }
 readme = "README.md"
 requires-python = ">=3.9"
-dependencies = []
+dependencies = [
+    "solo-founder-os>=0.1.0",
+]
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0"]

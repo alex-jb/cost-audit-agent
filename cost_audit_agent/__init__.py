@@ -12,4 +12,4 @@ markdown report flagging:
 Designed for: monthly retro. Not real-time. Run on the 2nd of each month
 via cron and read in Obsidian over coffee.
 """
-__version__ = "0.1.0"
+__version__ = "0.2.0"

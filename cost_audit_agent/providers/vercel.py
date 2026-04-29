@@ -13,13 +13,16 @@ Heuristics:
 - Pro plan ($20) but build minutes < 50/mo → flag downgrade
 - Build minutes > 1000 → flag enterprise plan inquiry (cheaper at scale)
 - Bandwidth > 1TB Pro included → flag overage
+
+v0.2: HTTP via solo_founder_os (urlopen_json + with_retry decorator).
+Vercel's API has occasional 5xx blips — retry handles them transparently.
 """
 from __future__ import annotations
-import json
 import os
-import urllib.error
-import urllib.request
 from datetime import datetime, timezone
+
+from solo_founder_os.http import urlopen_json, with_retry, HTTPError
+
 from .base import Provider, ProviderReport, WasteFinding
 
 
@@ -35,6 +38,7 @@ class VercelProvider(Provider):
     def configured(self) -> bool:
         return bool(os.getenv("VERCEL_TOKEN"))
 
+    @with_retry(times=3, backoff_seconds=1.0)
     def _api(self, path: str, *, query: dict | None = None) -> dict:
         token = os.getenv("VERCEL_TOKEN", "")
         team_id = os.getenv("VERCEL_TEAM_ID")
@@ -45,10 +49,8 @@ class VercelProvider(Provider):
         if params:
             qs = "&".join(f"{k}={v}" for k, v in params.items())
             url = f"{url}?{qs}"
-        req = urllib.request.Request(
-            url, headers={"Authorization": f"Bearer {token}"})
-        with urllib.request.urlopen(req, timeout=10) as r:
-            return json.loads(r.read().decode())
+        return urlopen_json(url, headers={"Authorization": f"Bearer {token}",
+                                          "Accept": "application/json"})
 
     def fetch(self) -> ProviderReport:
         now = datetime.now(timezone.utc)
@@ -63,11 +65,11 @@ class VercelProvider(Provider):
         try:
             data = self._api("/v6/deployments", query={"limit": 100})
             deployments = data.get("deployments", [])
-        except (urllib.error.URLError, urllib.error.HTTPError, ValueError) as e:
-            report.error = f"Vercel API error: {e}"
+        except HTTPError as e:
+            report.error = f"Vercel API HTTP {e.code}: {e}"
             return report
         except Exception as e:
-            report.error = f"unexpected: {e}"
+            report.error = f"Vercel API error: {e}"
             return report
 
         # Filter to month-to-date

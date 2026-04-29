@@ -6,40 +6,46 @@ key for this, NOT a regular API key.
 
 Env: ANTHROPIC_ADMIN_KEY (admin scope), ANTHROPIC_ORG_ID
 
-Falls back to local usage logs from build-quality-agent (~/.build-quality-agent/usage.jsonl)
-and funnel-analytics-agent (~/.funnel-analytics-agent/usage.jsonl) if no
-admin key — those at least cover the agents' own spend, which for indie
-founders is most of the month-end bill.
+Falls back to local usage logs from any solo-founder-os agent if no admin
+key — those at least cover the agents' own spend, which for indie
+founders is most of the month-end bill. Currently scans:
+  ~/.build-quality-agent/usage.jsonl
+  ~/.funnel-analytics-agent/usage.jsonl
+  ~/.vc-outreach-agent/usage.jsonl
+  ~/.customer-discovery-agent/usage.jsonl
 
 Heuristics:
 - spend > $50/mo with no obvious heavy task → flag review
 - spend on Sonnet for diff-review tasks (Haiku 4.5 cheaper) → flag swap
+
+v0.2: PRICES table now imported from solo-founder-os (single source of
+truth across the agent stack — when prices change we update one place).
 """
 from __future__ import annotations
 import json
 import os
 import pathlib
-import urllib.error
-import urllib.request
 from datetime import datetime, timezone
+
+from solo_founder_os.usage_log import PRICES
+
 from .base import Provider, ProviderReport, WasteFinding
 
 
-# Approximate $/MTok prices (Apr 2026)
-PRICES = {
-    "claude-haiku-4-5": (1.0, 5.0),       # input, output
-    "claude-sonnet-4-6": (3.0, 15.0),
-    "claude-opus-4-7": (15.0, 75.0),
-}
+# Agents whose ~/.<name>/usage.jsonl we scan in fallback mode. Add new
+# agents here as they ship.
+LOCAL_LOG_AGENTS = [
+    ".build-quality-agent",
+    ".funnel-analytics-agent",
+    ".vc-outreach-agent",
+    ".customer-discovery-agent",
+]
 
 
 def _scan_local_usage_logs() -> dict:
-    """Aggregate token + cost from local agent logs as a fallback."""
+    """Aggregate token + cost from all solo-founder-os agent logs."""
     home = pathlib.Path.home()
-    logs = [
-        home / ".build-quality-agent" / "usage.jsonl",
-        home / ".funnel-analytics-agent" / "usage.jsonl",
-    ]
+    logs = [home / agent_dir / "usage.jsonl" for agent_dir in LOCAL_LOG_AGENTS]
     by_model: dict[str, dict] = {}
     now = datetime.now(timezone.utc)
     first_of_month = datetime(now.year, now.month, 1, tzinfo=timezone.utc)
@@ -88,8 +94,8 @@ class AnthropicProvider(Provider):
             return True
         # Local logs always "configured" in fallback sense
         home = pathlib.Path.home()
-        return ((home / ".build-quality-agent" / "usage.jsonl").exists()
-                or (home / ".funnel-analytics-agent" / "usage.jsonl").exists())
+        return any((home / agent / "usage.jsonl").exists()
+                   for agent in LOCAL_LOG_AGENTS)
 
     def fetch(self) -> ProviderReport:
         now = datetime.now(timezone.utc)
