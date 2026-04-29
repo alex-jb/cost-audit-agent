@@ -1,0 +1,29 @@
+[project]
+name = "cost-audit-agent"
+version = "0.1.0"
+description = "Solo Founder OS agent #11 — monthly bill audit across Vercel / Anthropic / Supabase / OpenPanel / HyperDX. Flags underused SaaS + spend spikes."
+authors = [{ name = "Alex Ji", email = "alex@vibexforge.com" }]
+license = { text = "MIT" }
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[project.scripts]
+cost-audit-agent = "cost_audit_agent.__main__:main"
+
+[project.urls]
+Homepage = "https://github.com/alex-jb/cost-audit-agent"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["cost_audit_agent", "cost_audit_agent.providers"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
