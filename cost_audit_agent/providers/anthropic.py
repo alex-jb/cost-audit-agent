@@ -43,7 +43,18 @@ LOCAL_LOG_AGENTS = [
 
 
 def _scan_local_usage_logs() -> dict:
-    """Aggregate token + cost from all solo-founder-os agent logs."""
+    """Aggregate token + cost from all solo-founder-os agent logs.
+
+    Per-model dict tracks:
+        in        — base input tokens (uncached)
+        out       — output tokens
+        cache_w   — cache_creation_input_tokens (5m TTL → 1.25× base price)
+        cache_r   — cache_read_input_tokens (→ 0.10× base price)
+        cost      — actual $ paid (with cache discount applied)
+        cost_no_cache — what we'd have paid if cache hadn't been used
+                        (used to compute realized savings)
+        calls
+    """
     home = pathlib.Path.home()
     logs = [home / agent_dir / "usage.jsonl" for agent_dir in LOCAL_LOG_AGENTS]
     by_model: dict[str, dict] = {}
@@ -72,12 +83,33 @@ def _scan_local_usage_logs() -> dict:
                 in_p, out_p = PRICES.get(model, (1.0, 5.0))
                 in_tok = row.get("input_tokens", 0)
                 out_tok = row.get("output_tokens", 0)
-                cost = (in_tok * in_p + out_tok * out_p) / 1_000_000
-                m = by_model.setdefault(model,
-                    {"in": 0, "out": 0, "cost": 0.0, "calls": 0})
+                cache_w = row.get("cache_creation_input_tokens", 0) or 0
+                cache_r = row.get("cache_read_input_tokens", 0) or 0
+                # Anthropic prompt-cache pricing (5m TTL):
+                #   cache write = 1.25× base input
+                #   cache read  = 0.10× base input
+                cost = (
+                    in_tok * in_p
+                    + cache_w * in_p * 1.25
+                    + cache_r * in_p * 0.10
+                    + out_tok * out_p
+                ) / 1_000_000
+                cost_no_cache = (
+                    (in_tok + cache_w + cache_r) * in_p
+                    + out_tok * out_p
+                ) / 1_000_000
+                m = by_model.setdefault(model, {
+                    "in": 0, "out": 0,
+                    "cache_w": 0, "cache_r": 0,
+                    "cost": 0.0, "cost_no_cache": 0.0,
+                    "calls": 0,
+                })
                 m["in"] += in_tok
                 m["out"] += out_tok
+                m["cache_w"] += cache_w
+                m["cache_r"] += cache_r
                 m["cost"] += cost
+                m["cost_no_cache"] += cost_no_cache
                 m["calls"] += 1
         except Exception:
             continue
@@ -113,6 +145,13 @@ class AnthropicProvider(Provider):
                             "full org-wide spend")
             return report
 
+        # Cache savings: $ we WOULD have paid without cache, minus what we did pay
+        cost_no_cache = sum(m["cost_no_cache"] for m in by_model.values())
+        cache_savings_realized = max(0.0, cost_no_cache - local_cost)
+        total_cache_r = sum(m["cache_r"] for m in by_model.values())
+        total_cache_w = sum(m["cache_w"] for m in by_model.values())
+        total_input = sum(m["in"] for m in by_model.values())
+
         report.spend_usd_mtd = round(local_cost, 4)
         report.usage_units = {
             "calls_mtd": float(local_calls),
@@ -120,8 +159,44 @@ class AnthropicProvider(Provider):
             **{f"{m}_input_tokens": v["in"] for m, v in by_model.items()},
             **{f"{m}_output_tokens": v["out"] for m, v in by_model.items()},
         }
+        if total_cache_r or total_cache_w:
+            report.usage_units["cache_read_tokens"] = total_cache_r
+            report.usage_units["cache_creation_tokens"] = total_cache_w
+            report.usage_units["cache_savings_usd"] = round(cache_savings_realized, 4)
         report.raw = {"by_model": by_model,
-                      "source": "local_agent_logs"}
+                      "source": "local_agent_logs",
+                      "cache_savings_usd": round(cache_savings_realized, 4)}
+
+        # If cache is being used effectively, surface the win as an info finding
+        if cache_savings_realized > 1.0:
+            report.waste_findings.append(WasteFinding(
+                severity="info",
+                title=f"Prompt cache saving ~${cache_savings_realized:.2f}/mo",
+                detail=(f"{total_cache_r:,} cached read tokens this month "
+                        f"(at 10% of base input price). Without cache you'd "
+                        f"have paid ${cost_no_cache:.2f} instead of "
+                        f"${local_cost:.2f}. Keep cache_control=ephemeral on "
+                        f"long stable prompts."),
+                estimated_monthly_savings_usd=0.0,  # already realized, not future
+            ))
+        # Cache miss opportunity: lots of input tokens, zero cache fields seen
+        elif total_input > 100_000 and total_cache_r == 0 and total_cache_w == 0:
+            # Estimate: if we cached the system prompt portion (~30% of input
+            # tokens, conservatively), and it got hit on 70% of calls, savings
+            # = 0.30 × total_input × 0.70 × 0.90 × avg_in_price
+            avg_in_p = sum(PRICES.get(m, (1.0, 5.0))[0] for m in by_model.keys())
+            avg_in_p = avg_in_p / max(len(by_model), 1)
+            est_savings = (total_input * 0.30 * 0.70 * 0.90 * avg_in_p) / 1_000_000
+            report.waste_findings.append(WasteFinding(
+                severity="warn",
+                title="No prompt caching detected — leaving money on the table",
+                detail=(f"{total_input:,} input tokens this month, but no "
+                        f"cache hits/writes seen in any agent log. Adding "
+                        f"`cache_control={{'type':'ephemeral'}}` to stable "
+                        f"system prompts gives 90% off reads after 1st call "
+                        f"in any 5-min window."),
+                estimated_monthly_savings_usd=round(est_savings, 2),
+            ))
 
         # Heuristics
         if local_cost > 50:

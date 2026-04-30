@@ -120,6 +120,60 @@ def test_anthropic_sonnet_heavy_flags_haiku_swap(monkeypatch, tmp_path):
     assert any("Sonnet-heavy" in f.title for f in r.waste_findings)
 
 
+def test_anthropic_cache_savings_realized(monkeypatch, tmp_path):
+    """When cache_read_input_tokens is set, savings are computed against
+    the no-cache hypothetical and surfaced in usage_units + an info finding."""
+    import pathlib
+    monkeypatch.setattr(pathlib.Path, "home", lambda: tmp_path)
+    bqa_dir = tmp_path / ".build-quality-agent"
+    bqa_dir.mkdir()
+    log = bqa_dir / "usage.jsonl"
+    now = datetime.now(timezone.utc).isoformat()
+    # 50 calls each w/ 100k cache reads on Sonnet — substantial savings
+    rows = []
+    for _ in range(50):
+        rows.append(json.dumps({
+            "ts": now, "model": "claude-sonnet-4-6",
+            "input_tokens": 1000, "output_tokens": 200,
+            "cache_read_input_tokens": 100_000,
+            "cache_creation_input_tokens": 0,
+        }))
+    log.write_text("\n".join(rows))
+
+    r = AnthropicProvider().fetch()
+    assert r.error is None
+    assert r.usage_units.get("cache_read_tokens") == 100_000 * 50
+    # Savings = 50 × 100k × $3/M × (1 - 0.10) = $13.50
+    saved = r.usage_units.get("cache_savings_usd", 0)
+    assert saved > 10.0, f"expected ~$13.50, got ${saved}"
+    assert any("Prompt cache saving" in f.title for f in r.waste_findings)
+
+
+def test_anthropic_no_cache_flagged_as_opportunity(monkeypatch, tmp_path):
+    """Heavy input traffic with zero cache fields → warn finding with
+    estimated savings."""
+    import pathlib
+    monkeypatch.setattr(pathlib.Path, "home", lambda: tmp_path)
+    bqa_dir = tmp_path / ".build-quality-agent"
+    bqa_dir.mkdir()
+    log = bqa_dir / "usage.jsonl"
+    now = datetime.now(timezone.utc).isoformat()
+    # 10 calls × 20k input = 200k MTD, no cache
+    rows = []
+    for _ in range(10):
+        rows.append(json.dumps({
+            "ts": now, "model": "claude-sonnet-4-6",
+            "input_tokens": 20_000, "output_tokens": 100,
+        }))
+    log.write_text("\n".join(rows))
+
+    r = AnthropicProvider().fetch()
+    assert any("No prompt caching" in f.title for f in r.waste_findings)
+    no_cache_finding = next(f for f in r.waste_findings
+                             if "No prompt caching" in f.title)
+    assert no_cache_finding.estimated_monthly_savings_usd > 0
+
+
 def test_anthropic_old_logs_excluded(monkeypatch, tmp_path):
     """Logs from previous month should not count toward this month's spend."""
     import pathlib
