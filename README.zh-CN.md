@@ -5,6 +5,7 @@
 > Solo Founder OS 第 11 个 agent —— 月度账单扫描,跑过独立开发者常用的 SaaS 一圈。标出闲置订阅、消费突增、和能省的具体美元数字。
 
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![PyPI](https://img.shields.io/pypi/v/cost-audit-agent.svg)](https://pypi.org/project/cost-audit-agent/)
 [![Python](https://img.shields.io/badge/python-3.9%2B-blue.svg)](#)
 
 作者 [Alex Ji](https://github.com/alex-jb)。诞生于这一句:

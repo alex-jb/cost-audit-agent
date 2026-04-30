@@ -5,6 +5,7 @@
 > Solo Founder OS agent #11 — monthly bill audit across the SaaS stack indie founders use. Flags underused subscriptions, spend spikes, and specific waste recommendations with estimated dollar savings.
 
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![PyPI](https://img.shields.io/pypi/v/cost-audit-agent.svg)](https://pypi.org/project/cost-audit-agent/)
 [![Python](https://img.shields.io/badge/python-3.9%2B-blue.svg)](#)
 
 Built by [Alex Ji](https://github.com/alex-jb). Born from this thought:
