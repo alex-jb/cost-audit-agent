@@ -64,10 +64,49 @@ Anthropic's organization billing API requires an admin-scoped key, which most in
 ## Roadmap
 
 - [x] **v0.1** — Vercel + Anthropic providers · markdown report · waste heuristics · 14 tests
-- [ ] **v0.2** — OpenPanel, HyperDX, Supabase, GitHub Actions providers
-- [ ] **v0.3** — 3-month trailing baseline · spike detection
-- [ ] **v0.4** — Claude-summarized executive narrative at top of report
-- [ ] **v0.5** — Auto-cancel button (one-click webhook to provider's cancel endpoint when finding savings > $10/mo, gated by HITL like vc-outreach)
+- [x] **v0.3** — OpenPanel, HyperDX, Supabase, GitHub Actions providers
+- [x] **v0.4** — MCP server: query monthly spend + top savings from Claude Desktop
+- [ ] **v0.5** — 3-month trailing baseline · spike detection
+- [ ] **v0.6** — Claude-summarized executive narrative at top of report
+- [ ] **v0.7** — Auto-cancel button (one-click webhook to provider's cancel endpoint when finding savings > $10/mo, gated by HITL like vc-outreach)
+
+## MCP server (Claude Desktop / Cursor / Zed)
+
+Ask your AI assistant "what's my biggest waste this month?" and let it call the auditor.
+
+```bash
+pip install 'cost-audit-agent[mcp]'
+```
+
+Then in `~/Library/Application Support/Claude/claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "cost-audit": {
+      "command": "cost-audit-mcp",
+      "env": {
+        "VERCEL_TOKEN": "...",
+        "VERCEL_PLAN_USD": "20",
+        "ANTHROPIC_ADMIN_KEY": "...",
+        "ANTHROPIC_ORG_ID": "...",
+        "OPENPANEL_CLIENT_ID": "...",
+        "OPENPANEL_CLIENT_SECRET": "...",
+        "HYPERDX_API_KEY": "...",
+        "SUPABASE_PERSONAL_ACCESS_TOKEN": "...",
+        "SUPABASE_PROJECT_REF": "...",
+        "GITHUB_TOKEN": "...",
+        "GITHUB_REPO": "alex-jb/vibex"
+      }
+    }
+  }
+}
+```
+
+Tools:
+- `get_monthly_report()` — full markdown audit, all providers
+- `get_provider(name)` — one provider's spend + waste findings
+- `top_savings(n=5)` — top N findings by estimated $/mo, sorted
 
 ## License
 

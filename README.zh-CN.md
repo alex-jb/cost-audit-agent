@@ -64,10 +64,49 @@ Anthropic 的 organization billing API 要 admin scope key,大部分独立开发
 ## Roadmap
 
 - [x] **v0.1** —— Vercel + Anthropic providers · markdown 报告 · 浪费启发式 · 14 tests
-- [ ] **v0.2** —— OpenPanel, HyperDX, Supabase, GitHub Actions providers
-- [ ] **v0.3** —— 3 个月滚动基线 · 突增检测
-- [ ] **v0.4** —— Claude 写的 executive 摘要放报告顶部
-- [ ] **v0.5** —— 一键取消按钮(月省 > $10 时 webhook 调 provider 取消端点,跟 vc-outreach 一样 HITL gated)
+- [x] **v0.3** —— OpenPanel, HyperDX, Supabase, GitHub Actions providers
+- [x] **v0.4** —— MCP server:Claude Desktop 直接查月账单 + top savings
+- [ ] **v0.5** —— 3 个月滚动基线 · 突增检测
+- [ ] **v0.6** —— Claude 写的 executive 摘要放报告顶部
+- [ ] **v0.7** —— 一键取消按钮(月省 > $10 时 webhook 调 provider 取消端点,跟 vc-outreach 一样 HITL gated)
+
+## MCP server(Claude Desktop / Cursor / Zed)
+
+让 AI 助手直接问"这个月最大的浪费在哪",自动跑账单审计。
+
+```bash
+pip install 'cost-audit-agent[mcp]'
+```
+
+然后写到 `~/Library/Application Support/Claude/claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "cost-audit": {
+      "command": "cost-audit-mcp",
+      "env": {
+        "VERCEL_TOKEN": "...",
+        "VERCEL_PLAN_USD": "20",
+        "ANTHROPIC_ADMIN_KEY": "...",
+        "ANTHROPIC_ORG_ID": "...",
+        "OPENPANEL_CLIENT_ID": "...",
+        "OPENPANEL_CLIENT_SECRET": "...",
+        "HYPERDX_API_KEY": "...",
+        "SUPABASE_PERSONAL_ACCESS_TOKEN": "...",
+        "SUPABASE_PROJECT_REF": "...",
+        "GITHUB_TOKEN": "...",
+        "GITHUB_REPO": "alex-jb/vibex"
+      }
+    }
+  }
+}
+```
+
+工具:
+- `get_monthly_report()` —— 全 provider 完整 markdown 审计
+- `get_provider(name)` —— 单 provider 的消费 + 浪费发现
+- `top_savings(n=5)` —— 按月省 $ 排序的 top N
 
 ## 协议
 
