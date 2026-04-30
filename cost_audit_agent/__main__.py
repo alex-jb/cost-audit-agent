@@ -16,7 +16,11 @@ import sys
 from pathlib import Path
 from datetime import datetime, timezone
 
-from .providers import VercelProvider, AnthropicProvider
+from .providers import (
+    VercelProvider, AnthropicProvider,
+    OpenPanelProvider, HyperDXProvider,
+    SupabaseProvider, GitHubActionsProvider,
+)
 from .providers.base import Provider, ProviderReport
 from .report import compose_report
 
@@ -24,6 +28,10 @@ from .report import compose_report
 ALL_PROVIDERS: dict[str, type[Provider]] = {
     "vercel": VercelProvider,
     "anthropic": AnthropicProvider,
+    "openpanel": OpenPanelProvider,
+    "hyperdx": HyperDXProvider,
+    "supabase": SupabaseProvider,
+    "github_actions": GitHubActionsProvider,
 }
 
 
