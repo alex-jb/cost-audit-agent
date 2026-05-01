@@ -8,7 +8,7 @@ Sections:
 """
 from __future__ import annotations
 from datetime import datetime, timezone
-from .providers.base import ProviderReport
+from .providers.base import ProviderReport, WasteFinding
 
 
 SEVERITY_ICON = {"alert": "🚨", "warn": "⚠️", "info": "💡"}
@@ -30,7 +30,7 @@ def compose_report(reports: list[ProviderReport],
             ""]
 
     # Waste findings — flat list across all providers, sorted by savings desc
-    findings: list[tuple[str, "WasteFinding"]] = []
+    findings: list[tuple[str, WasteFinding]] = []
     for r in reports:
         for f in r.waste_findings:
             findings.append((r.provider, f))

@@ -89,7 +89,7 @@ class SupabaseProvider(Provider):
                             detail=(
                                 "Security advisors flag debt that becomes "
                                 "expensive when exploited. Visit dashboard "
-                                f"→ Advisors and resolve before launch. "
+                                "→ Advisors and resolve before launch. "
                                 "Examples this incident: "
                                 + ", ".join(l.get("name", "?") for l in crit[:3])),
                             estimated_monthly_savings_usd=0.0,

@@ -67,7 +67,7 @@ class HyperDXProvider(Provider):
                 severity="info",
                 title="HyperDX Team tier — confirm you're past the free 1 GB",
                 detail=(
-                    f"Team tier is $49/mo. Free tier covers 1 GB/14 days "
+                    "Team tier is $49/mo. Free tier covers 1 GB/14 days "
                     "which is plenty for pre-PMF apps. If you're still "
                     "exploring, drop to free — saves $49/mo."),
                 estimated_monthly_savings_usd=49.0,

@@ -6,12 +6,11 @@ import sys
 from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
-import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from cost_audit_agent.providers.vercel import VercelProvider
-from cost_audit_agent.providers.anthropic import AnthropicProvider, _scan_local_usage_logs
+from cost_audit_agent.providers.anthropic import AnthropicProvider
 
 
 def _ok_response(payload: dict):
